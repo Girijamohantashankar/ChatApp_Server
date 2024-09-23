@@ -1,33 +1,70 @@
-// friendRequestRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const FriendRequest = require('../models/FriendRequest');
-const { verifyToken } = require('../middlewares/authMiddleware'); // Ensure middleware is correctly imported
+const { verifyToken } = require('../middlewares/authMiddleware');
 
 // Send a friend request
 router.post('/send-friend-request', verifyToken, async (req, res) => {
   const { receiverId } = req.body;
-  const senderId = req.user.id; // This should be set by verifyToken
+  const senderId = req.user.id;
 
   try {
-    // Check if a friend request already exists
     const existingRequest = await FriendRequest.findOne({ sender: senderId, receiver: receiverId });
 
     if (existingRequest) {
-      return res.status(400).json({ message: 'Friend request already sent' });
+      return res.status(400).json({ success: false, message: 'Friend request already sent' });
     }
-
-    // Create a new friend request
     const friendRequest = new FriendRequest({
       sender: senderId,
       receiver: receiverId,
     });
 
     await friendRequest.save();
-    res.status(201).json({ message: 'Friend request sent' });
+    res.status(201).json({ success: true, message: 'Friend request sent' });
   } catch (error) {
     console.error('Error sending friend request:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+// Fetch friend requests for a user
+router.get('/friend-requests', verifyToken, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const requests = await FriendRequest.find({
+      $or: [{ sender: userId }, { receiver: userId }],
+    }).populate('sender receiver', 'userName'); // Adjust to include relevant user data
+
+    res.status(200).json(requests);
+  } catch (error) {
+    console.error('Error fetching friend requests:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+// Accept a friend request
+router.post('/accept-friend-request', verifyToken, async (req, res) => {
+  const { requestId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const request = await FriendRequest.findById(requestId);
+
+    if (!request || request.receiver.toString() !== userId) {
+      return res.status(404).json({ message: 'Friend request not found' });
+    }
+
+    request.status = 'accepted';
+    await request.save();
+    await User.findByIdAndUpdate(request.sender, { $push: { friends: userId } });
+    await User.findByIdAndUpdate(userId, { $push: { friends: request.sender } });
+
+    res.json({ message: 'Friend request accepted' });
+  } catch (error) {
+    console.error('Error accepting friend request:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
