@@ -18,11 +18,13 @@ mongoose.connect(process.env.MONGODB_URI)
 // Import routes
 const authRoutes = require('./routes/auth');
 const friendsRoutes = require('./routes/friends');
+const friendRequestRoutes = require('./routes/friendRequest');
 
 
 // Use routes
 app.use('/api/auth', authRoutes);
-app.use('/api/friends', friendsRoutes);
+app.use('/api', friendsRoutes);
+app.use('/api', friendRequestRoutes);
 
 
 
