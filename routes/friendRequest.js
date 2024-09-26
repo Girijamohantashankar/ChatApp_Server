@@ -69,4 +69,28 @@ router.post('/accept-friend-request', verifyToken, async (req, res) => {
   }
 });
 
+
+
+// Reject a friend request
+router.post('/reject-friend-request', verifyToken, async (req, res) => {
+  const { requestId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const request = await FriendRequest.findById(requestId);
+
+    if (!request || request.receiver.toString() !== userId) {
+      return res.status(404).json({ message: 'Friend request not found' });
+    }
+
+    // Remove the friend request from the database
+    await request.remove();
+
+    res.json({ message: 'Friend request rejected' });
+  } catch (error) {
+    console.error('Error rejecting friend request:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
